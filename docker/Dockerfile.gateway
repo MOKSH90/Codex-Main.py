@@ -1,0 +1,88 @@
+# ==============================================================================
+# VELIKY Gateway & Execution Sandbox Container
+# Sovereign Agent Backend, Bubblewrap Sandbox, RAG Engine & Obsidian Vault Server
+# ==============================================================================
+
+FROM python:3.11-slim-bookworm
+
+# 1. Install system utilities, Bubblewrap sandbox, and document analysis tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    curl \
+    ca-certificates \
+    bubblewrap \
+    util-linux \
+    poppler-utils \
+    tesseract-ocr \
+    imagemagick \
+    tar \
+    gzip \
+    grep \
+ && rm -rf /var/lib/apt/lists/*
+
+# 2. Setup isolated Python virtual environment
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# 3. Install Python dependencies
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir \
+        transformers \
+        accelerate \
+        sentence-transformers \
+        pymilvus \
+        rank-bm25 \
+        pandas \
+        jsonschema \
+        pillow \
+        pydantic \
+        pyyaml \
+        mcp \
+        starlette \
+        uvicorn \
+        rich \
+        requests \
+        beautifulsoup4 \
+        pypdf
+
+# 4. Working directory and application files
+WORKDIR /app
+
+COPY tflite/RAG /app/tflite/RAG
+COPY tflite/veliky_vault /app/tflite/veliky_vault
+COPY tflite/veliky_cli.py tflite/reinery_cli.py /app/tflite/
+COPY tflite/tools /app/tflite/tools
+COPY Veliky-Web/server /app/Veliky-Web/server
+COPY docker/entrypoint-gateway.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# 5. Environment configuration
+ENV PYTHONUNBUFFERED=1 \
+    VELIKY_GATEWAY_HOST=0.0.0.0 \
+    VELIKY_GATEWAY_PORT=8766 \
+    VELIKY_RAG_DIR=/app/tflite/RAG \
+    VAULT_DIR=/app/tflite/veliky_vault \
+    VELIKY_STATE_DIR=/app/tflite/RAG/state \
+    VELIKY_DATA_DIR=/app/tflite/RAG/data \
+    VELIKY_ROLE=admin \
+    VELIKY_HARNESS_WRITES=1 \
+    INFERENCE_ENDPOINT=http://model-server:8000/v1 \
+    VELIKY_REASONING_ENDPOINT=http://model-server:8000/v1 \
+    VELIKY_REASONING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
+    VELIKY_CODING_ENDPOINT=http://model-server:8000/v1 \
+    VELIKY_CODING_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
+    VELIKY_VISION_ENDPOINT=http://model-server:8000/v1 \
+    VELIKY_VISION_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B \
+    MODEL_NAME=deepseek-ai/DeepSeek-R1-Distill-Qwen-7B
+
+VOLUME ["/app/tflite/veliky_vault", "/app/tflite/RAG/state", "/app/tflite/RAG/data"]
+
+EXPOSE 8766
+
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 --start-period=5s \
+    CMD curl -sf http://127.0.0.1:8766/health || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["gateway"]

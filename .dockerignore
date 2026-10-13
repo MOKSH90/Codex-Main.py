@@ -1,0 +1,37 @@
+# Git & IDE
+.git
+.gitignore
+.idea
+.vscode
+.pytest_cache
+*.pyc
+__pycache__
+*.log
+
+# Node & Frontend
+node_modules
+Veliky-Web/node_modules
+Veliky-Web/dist
+Veliky-Web/.runtime
+*.tsbuildinfo
+
+# Python Virtual Environments
+.venv
+tflite/.venv
+venv
+ENV
+
+# Android App
+Veliky-App/.gradle
+Veliky-App/build
+Veliky-App/app/build
+Veliky-App/.idea
+
+# Veliky Harness monorepo local builds
+tflite/tools/veliky-harness/node_modules
+tflite/tools/veliky-harness/**/node_modules
+
+# Huggingface and caches
+.cache
+~*
+*.swp
